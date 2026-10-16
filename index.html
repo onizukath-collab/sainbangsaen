@@ -5,24 +5,64 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>เซียนบางแสน - GeoGuesser</title>
 
-  <!-- 🌟 ปรับลิงก์ให้ตรงกับที่อยู่จริงบน GitHub Pages ของคุณ -->
+  <!-- 🌟 1. แท็กสำหรับปรับแต่งหน้าตาเวลาแชร์ลิงก์ลง Facebook / Social Media -->
   <meta property="og:title" content="เซียนบางแสน - เกมทายพิกัดสุดมันส์ริมทะเล">
   <meta property="og:description" content="มาร่วมสนุกทายพิกัดสถานที่และรับคูปองส่วนลดพิเศษในบางแสนกันเถอะ!">
   <meta property="og:image" content="https://onizukath-collab.github.io/sainbangsaen/Gmap.jpg">
   <meta property="og:url" content="https://onizukath-collab.github.io/sainbangsaen/">
   <meta property="og:type" content="website">
-</head>
 
-  <!-- Leaflet CSS & JS และสคริปต์อื่นๆ ต่อตรงนี้ -->
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>เซียนบางแสน - GeoGuesser</title>
+  <!-- 🌟 2. แท็กเชื่อมต่อ PWA สำหรับติดตั้งเป็นแอปบนมือถือ -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0284c7">
+
+  <!-- 🌟 3. สคริปต์ตรวจจับ Facebook In-App Browser และ iOS PWA Banner -->
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      const ua = navigator.userAgent || navigator.vendor || window.opera;
+      const isFacebook = (ua.indexOf("FBAN") > -1) || (ua.indexOf("FBAV") > -1);
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+
+      // ถ้าเปิดจากภายในแอป Facebook
+      if (isFacebook) {
+        const banner = document.createElement('div');
+        banner.style.cssText = `
+          position: fixed; top: 0; left: 0; width: 100%; 
+          background: #fef3c7; color: #92400e; padding: 10px; 
+          text-align: center; font-size: 12px; font-weight: bold; 
+          z-index: 999999; border-bottom: 2px solid #f59e0b;
+        `;
+        banner.innerHTML = `
+          📌 เพื่อประสบการณ์เล่นที่ดีที่สุดและติดตั้งแอปได้<br>
+          กดที่จุด 3 จุดมุมขวาบน (...) แล้วเลือก <b>"เปิดในเบราว์เซอร์ภายนอก / Open in Chrome/Safari"</b>
+        `;
+        document.body.prepend(banner);
+      }
+      // ถ้าเปิดบน iPhone/iPad ผ่าน Safari (ยังไม่ได้เพิ่มลงหน้าจอโฮม)
+      else if (isIOS && !isStandalone) {
+        const iosBanner = document.createElement('div');
+        iosBanner.style.cssText = `
+          position: fixed; bottom: 10px; left: 5%; width: 90%; 
+          background: #0284c7; color: #ffffff; padding: 12px; border-radius: 12px;
+          text-align: center; font-size: 12px; font-weight: bold; 
+          z-index: 999999; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        `;
+        iosBanner.innerHTML = `
+          📱 เล่นผ่านแอปเต็มจอง่ายๆ!<br>
+          กดปุ่มแชร์ 📤 ด้านล่าง แล้วเลือก <b>"เพิ่มไปยังหน้าจอโฮม ➕"</b> ได้เลย
+          <button onclick="this.parentElement.remove()" style="margin-left:8px; background:#fff; color:#0284c7; border:none; padding:2px 8px; border-radius:6px; font-weight:bold; cursor:pointer;">รับทราบ</button>
+        `;
+        document.body.appendChild(iosBanner);
+      }
+    });
+  </script>
 
   <!-- Leaflet CSS & JS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <!-- 🌟 Firebase App & Firestore SDK (CDN) -->
+  <!-- Firebase SDK (CDN) -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, doc, setDoc, onSnapshot, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -93,7 +133,7 @@
       if (!text) return;
 
       try {
-        const currentAvatar = window.getAvatarHTML ? window.getAvatarHTML() : document.getElementById('character-preview').innerHTML;
+        const currentAvatar = document.getElementById('character-preview').innerHTML;
         const currentName = document.getElementById('username-input').value.trim() || "นักท่องเที่ยว";
 
         await addDoc(collection(db, "lobby_chat"), {
@@ -195,7 +235,7 @@
       listenOnlinePlayers();
       listenLobbyChat();
       setTimeout(() => {
-        const defaultAvatar = window.getAvatarHTML ? window.getAvatarHTML() : document.getElementById('character-preview').innerHTML;
+        const defaultAvatar = document.getElementById('character-preview').innerHTML;
         updateOnlinePresence("นักท่องเที่ยว", defaultAvatar);
       }, 500);
     });
@@ -224,14 +264,14 @@
     }
 
     #character-preview {
-      position: relative; border: 0px solid #0584c7; border-radius: 50%; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-      display: flex; align-items: center; justify-content: center; z-index: 2; width: 80px; height: 80px; margin: 0 auto;
+      position: relative; border: 0px solid #0584c7; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      display: flex; align-items: center; justify-content: center; z-index: 2;
     }
 
     #character-preview img {
-      position: absolute; top: 0px; left: 0px; width: 100%; height: 100%; margin: 0;
+      position: absolute; top: 0px; left: 0px; width: 80px; height: 80px; margin: 0;
       background: #ffffff; border-radius: 50%; border: 3px solid #0284c7; overflow: hidden;
-      box-shadow: 0 4px 0px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; z-index: 10; object-fit: cover;
+      box-shadow: 0 4px 0px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; z-index: 10;
     }
 
     .online-box { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 10px; border-radius: 12px; margin-top: 15px; text-align: left; }
@@ -256,18 +296,16 @@
     .custom-png-marker {
       background: white; border-radius: 50%; border: 3px solid #0284c7; box-shadow: 0 4px 8px rgba(0,0,0,0.4); overflow: hidden;
     }
-    .custom-png-marker div { position: relative; width: 100%; height: 100%; border-radius: 50%; overflow: hidden; }
-    .custom-png-marker img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+    .custom-png-marker div { position: relative; width: 100%; height: 100%; }
+    .custom-png-marker img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
 
     #play-screen { display: none; }
     .header { text-align: center; margin-bottom: 10px; }
     .header h1 { margin: 0; color: #0284c7; font-size: 22px; }
     
     .player-profile { display: flex; align-items: center; background: #f8fafc; padding: 8px 12px; border-radius: 10px; margin-bottom: 10px; font-weight: bold; color: #334155; gap: 10px; }
-    
-    /* 🌟 ปรับแต่งกล่องรูปโปรไฟล์ในหน้าเล่นเกมให้เป็นวงกลมมน 100% */
-    .player-avatar-mini { width: 32px; height: 32px; min-width: 32px; min-height: 32px; position: relative; display: flex; align-items: center; justify-content: center; background: #fff; border-radius: 50% !important; overflow: hidden !important; border: 1px solid #cbd5e1; }
-    .player-avatar-mini img { width: 100% !important; height: 100% !important; object-fit: cover !important; border-radius: 50% !important; }
+    .player-avatar-mini { width: 32px; height: 32px; position: relative; display: flex; align-items: center; justify-content: center; background: #fff; border-radius: 50%; overflow: hidden; border: 1px solid #cbd5e1; }
+    .player-avatar-mini img { width:100%; height:100%; object-fit: cover; }
     
     .status-bar { display: flex; justify-content: space-between; margin-top: 5px; font-weight: bold; color: #0369a1; font-size: 14px; }
 
@@ -328,15 +366,16 @@
 
       <div class="avatar-builder-container">
         <div id="character-preview">
-              </div>
+          <img id="layer-face" src="assets/face1.png" alt="">
+        </div>
 		
         <label for="avatar-upload" style="cursor: pointer; position: absolute; top: -180px; left: 7px; z-index: 10;" title="คลิกเพื่อเปลี่ยนรูป/ถ่ายรูป">
-          <div style="width: 90px; height: 90px; background: #ffffff; border-radius: 50%; border: 0.2px solid #f0f9ff; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center;">
+          <div id="character-preview" style="width: 90px; height: 90px; background: #ffffff; border-radius: 50%; border: 0.2px solid #f0f9ff; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center;">
             <div id="upload-placeholder" style="text-align: center; color: #0284c7;">
               <div style="font-size: 26px; line-height: 1;">📷</div>
               <div style="font-size: 9px; font-weight: bold; margin-top: 2px;">ใส่รูป</div>
             </div>
-            <img id="avatar-img-preview" src="" alt="Avatar" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: none;">
+            <img id="avatar-img-preview" src="" alt="Avatar" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; display: none;">
           </div>
         </label>
 
@@ -348,26 +387,14 @@
             if (file) {
               const reader = new FileReader();
               reader.onload = function(e) {
-                const img = new Image();
-                img.onload = function() {
-                  const canvas = document.createElement('canvas');
-                  const ctx = canvas.getContext('2d');
-                  canvas.width = 80;
-                  canvas.height = 80;
-                  ctx.drawImage(img, 0, 0, 80, 80);
-                  
-                  const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
-
-                  const imgElement = document.getElementById('avatar-img-preview');
-                  const placeholder = document.getElementById('upload-placeholder');
-                  
-                  imgElement.src = compressedBase64;
-                  imgElement.style.display = 'block';
-                  if (placeholder) {
-                    placeholder.style.display = 'none';
-                  }
-                };
-                img.src = e.target.result;
+                const imgElement = document.getElementById('avatar-img-preview');
+                const placeholder = document.getElementById('upload-placeholder');
+                
+                imgElement.src = e.target.result;
+                imgElement.style.display = 'block';
+                if (placeholder) {
+                  placeholder.style.display = 'none';
+                }
               };
               reader.readAsDataURL(file);
             }
@@ -380,7 +407,7 @@
       <!-- 🟢 ช่องผู้ออนไลน์ -->
       <div class="online-box">
         <h4 id="online-count-txt">🟢 กำลังเชื่อมต่อผู้เล่น...</h4>
-      
+        <div id="online-players-list"></div>
       </div>
 
       <!-- 💬 กล่องแชทสด + ข้อความด่วน -->
@@ -440,25 +467,16 @@
       </div>
     </div>
 
-   <!-- 3. หน้าจอสรุปผลคะแนน -->
+    <!-- 3. หน้าจอสรุปผลคะแนน -->
     <div id="final-screen">
       <h1>🎉 สรุปผลการเล่น</h1>
-      
-      <!-- 🌟 จัดรูปผู้เล่นให้อยู่กลาง และชื่ออยู่ใต้ภาพ -->
-      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 15px 0; gap: 8px;">
-        <div id="final-player-avatar" style="width: 70px; height: 70px; border-radius: 50%; overflow: hidden; border: 3px solid #0284c7; background: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.15);"></div>
-        <div id="final-player-name" style="font-weight: bold; color: #0284c7; font-size: 18px;">นักท่องเที่ยว</div>
-      </div>
-
+      <div id="final-player-info" style="font-weight: bold; color: #0284c7; font-size: 18px; margin-bottom: 5px; display: flex; align-items: center; justify-content: center; gap: 8px;"></div>
       <div class="badge" id="final-badge">🥇</div>
-      <h2 id="final-title" style="color:#0284c7; margin:5px 0;">ระดับ: มหาเซียนบางแสน</h2>
-      <p style="font-size: 16px; margin: 10px 0;">คุณทำคะแนนรวมได้: <b id="final-score" style="color:#e11d48; font-size:24px;">0</b> คะแนน</p>
+      <h2 id="final-title" style="color:#0284c7; margin:5px 0;">ระดับ: เซียนบางแสน</h2>
+      <p style="font-size: 16px;">คุณทำคะแนนรวมได้: <b id="final-score" style="color:#e11d48; font-size:22px;">0</b> คะแนน</p>
       
-      <!-- 🚀 ปุ่มแชร์และเล่นใหม่ -->
-      <!-- ปุ่มแชร์ไปยัง Facebook / เพจของผู้เล่น -->
-      <button class="main-btn share-btn" onclick="shareToFacebook()" style="background: #1877f2; margin-top: 10px;">📘 แชร์ผลลัพธ์ลง Facebook / เพจของคุณ
-      <button class="main-btn" onclick="shareResult()" style="background: #16a34a; margin-top: 8px;">📋 คัดลอกข้อความไปแชร์</button>
-      <button class="main-btn" onclick="location.reload()" style="background:#64748b; margin-top:8px;">🔄 เล่นใหม่อีกครั้ง</button>
+      <button class="main-btn share-btn" onclick="shareResult()">📋 คัดลอกผลลัพธ์ไปแชร์เพื่อน</button>
+      <button class="main-btn" onclick="location.reload()" style="background:#64748b; margin-top:10px;">🔄 เล่นใหม่อีกครั้ง</button>
     </div>
 
   </div>
@@ -467,17 +485,17 @@
   <div id="coupon-modal-overlay">
     <div class="coupon-modal-card">
       <div style="background: #ffffff; border: 2px dashed #ea580c; border-radius: 12px; padding: 15px; text-align: center;">
-        <p style="font-size: 13px; color: #d97706; margin: 0 0 8px 0; font-weight: bold;">🎁 ยินดีด้วย! คุณได้รับคูปองส่วนลด</p>
-        
-        <div id="coupon-image-container" style="margin-bottom: 8px;"></div>
-        
-        <p style="font-size: 11px; color: #64748b; margin: 0; background: #fef3c7; padding: 4px; border-radius: 4px;">
-          📱 <b>วิธีบันทึก:</b> แคปเจอร์รูปภาพคูปอง </b> เพื่อเก็บไว้ใช้หน้าร้าน
-        </p>
+        <p style="font-size: 13px; color: #d97706; margin: 0 0 10px 0; font-weight: bold;">🎁 ยินดีด้วย! คุณได้รับคูปองส่วนลด</p>
+        <img id="coupon-modal-img" src="" alt="คูปอง" style="width: 100%; max-height: 160px; object-fit: cover; border-radius: 8px;">
+        <p id="coupon-modal-name" style="font-weight: bold; color: #1e293b; margin: 10px 0 4px 0; font-size: 14px;"></p>
+        <span id="coupon-modal-promo" style="display: inline-block; background: #ffedd5; color: #c2410c; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold;"></span>
       </div>
 
-      <div style="margin-top: 15px;">
-        <button onclick="closeCouponModal()" style="background: #0284c7; color: white; border: none; width: 100%; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px;">
+      <div style="margin-top: 15px; display: flex; flex-direction: column; gap: 8px;">
+        <button onclick="generateAndDownloadCouponImage()" style="background: #16a34a; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px;">
+          📥 ดาวน์โหลดภาพคูปอง (เก็บบันทึกเครื่อง)
+        </button>
+        <button onclick="closeCouponModal()" style="background: #0284c7; color: white; border: none; padding: 8px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px;">
           ปิดหน้าต่าง / เล่นต่อ
         </button>
       </div>
@@ -530,17 +548,6 @@
     let savedAvatarHTML = "";
     let activeCouponData = null;
 
-    // 🌟 ปรับปรุงฟังก์ชันดึง HTML รูปโปรไฟล์ บังคับทรงวงกลมมน 100%
-    window.getAvatarHTML = function() {
-      const avatarImgPreview = document.getElementById('avatar-img-preview');
-      if (avatarImgPreview && avatarImgPreview.src && avatarImgPreview.style.display !== 'none') {
-        return `<img src="${avatarImgPreview.src}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`;
-      } else {
-        const charPreview = document.getElementById('character-preview');
-        return charPreview ? `<div style="width:100%; height:100%; border-radius:50%; overflow:hidden; position:relative;">${charPreview.innerHTML}</div>` : `<img src="assets/face1.png" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`;
-      }
-    };
-
     function updateOnlineStatus() {
       if (typeof window.updateOnlinePresence === 'function') {
         const inputVal = document.getElementById('username-input').value.trim() || "นักท่องเที่ยว";
@@ -552,7 +559,7 @@
       const inputVal = document.getElementById('username-input').value.trim();
       if (inputVal !== "") playerName = inputVal;
       
-      savedAvatarHTML = window.getAvatarHTML();
+      savedAvatarHTML = document.getElementById('character-preview').innerHTML;
       
       document.getElementById('disp-avatar').innerHTML = savedAvatarHTML;
       document.getElementById('disp-name').innerText = playerName;
@@ -694,7 +701,7 @@
       }
 
       document.getElementById('result-msg').innerHTML = `
-        🎯 ได้ +${score} คะแนน
+        🎯 ระยะห่าง: ${dist} เมตร | ได้ +${score} คะแนน
         ${promoHtml}
         <div style="margin-top:6px; display:flex; gap:6px; flex-wrap:wrap; justify-content:center;">
           ${btnMapsHtml}
@@ -714,38 +721,26 @@
       document.getElementById('next-btn').style.display = "block";
     }
 
-    function nextQuestion() {
-      currentIdx++;
-      if (currentIdx < questions.length) {
-        loadQuestion();
-      } else {
-        document.getElementById('play-screen').style.display = "none";
-        document.getElementById('final-screen').style.display = "block";
-        
-        document.getElementById('final-score').innerText = totalScore;
-        document.getElementById('final-player-avatar').innerHTML = savedAvatarHTML;
-        document.getElementById('final-player-name').innerText = playerName;
-
-        // คำนวณและแสดงระดับตามคะแนน
-        const rankInfo = getRankTitle(totalScore);
-        document.getElementById('final-title').innerText = `ระดับ: ${rankInfo.title}`;
-        document.getElementById('final-badge').innerText = rankInfo.badge;
-        
-        if (typeof window.saveScoreToFirebase === 'function') {
-          window.saveScoreToFirebase(playerName, totalScore, savedAvatarHTML);
-        }
-      }
-    }
-
     function showCouponModal(item) {
       activeCouponData = item;
-      const container = document.getElementById('coupon-image-container');
-      container.innerHTML = "กำลังสร้างภาพคูปอง...";
+      document.getElementById('coupon-modal-img').src = item.img;
+      document.getElementById('coupon-modal-name').innerText = item.name;
+      document.getElementById('coupon-modal-promo').innerText = item.promo;
+      document.getElementById('coupon-modal-overlay').style.display = 'flex';
+    }
+
+    function closeCouponModal() {
+      document.getElementById('coupon-modal-overlay').style.display = 'none';
+    }
+
+    function generateAndDownloadCouponImage() {
+      if (!activeCouponData) return;
 
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
+      
       canvas.width = 600;
-      canvas.height = 480;
+      canvas.height = 500;
 
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -758,7 +753,7 @@
       ctx.fillStyle = "#d97706";
       ctx.font = "bold 20px 'Kanit', sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText("🎁 คูปองส่วนลดพิเศษจากเกมเซียนบางแสน", canvas.width / 2, 65);
+      ctx.fillText("🎁 ยินดีด้วย! คุณได้รับคูปองส่วนลด", canvas.width / 2, 65);
 
       const img = new Image();
       img.crossOrigin = "anonymous";
@@ -767,67 +762,53 @@
 
         ctx.fillStyle = "#1e293b";
         ctx.font = "bold 22px 'Kanit', sans-serif";
-        ctx.fillText(item.name, canvas.width / 2, 345);
+        ctx.fillText(activeCouponData.name, canvas.width / 2, 345);
 
         ctx.fillStyle = "#ffedd5";
         ctx.beginPath();
-        if (ctx.roundRect) {
-          ctx.roundRect(120, 370, 360, 45, 22);
-        } else {
-          ctx.rect(120, 370, 360, 45);
-        }
+        ctx.roundRect(120, 370, 360, 45, 22);
         ctx.fill();
 
         ctx.fillStyle = "#c2410c";
         ctx.font = "bold 18px 'Kanit', sans-serif";
-        ctx.fillText(item.promo, canvas.width / 2, 398);
+        ctx.fillText(activeCouponData.promo, canvas.width / 2, 399);
 
-        const finalImgUrl = canvas.toDataURL('image/png');
-        container.innerHTML = `<img src="${finalImgUrl}" alt="คูปองส่วนลด" style="width: 100%; max-height: 200px; object-fit: contain; border-radius: 8px; border: 1px solid #cbd5e1;">`;
+        const link = document.createElement('a');
+        link.download = 'bangsaen-coupon.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
       };
-      img.src = item.img;
-
-      document.getElementById('coupon-modal-overlay').style.display = 'flex';
+      img.src = activeCouponData.img;
     }
 
-    function closeCouponModal() {
-      document.getElementById('coupon-modal-overlay').style.display = 'none';
+    function nextQuestion() {
+      currentIdx++;
+      if (currentIdx < questions.length) {
+ loadQuestion();
+      } else {
+        document.getElementById('play-screen').style.display = "none";
+        document.getElementById('final-screen').style.display = "block";
+        document.getElementById('final-score').innerText = totalScore;
+        document.getElementById('final-player-info').innerHTML = `<div style="width:32px;height:32px;border-radius:50%;overflow:hidden;border:1px solid #0284c7;display:inline-flex;align-items:center;justify-content:center;">${savedAvatarHTML}</div> ${playerName}`;
+        
+        let title = "เซียนบางแสนตัวจริง";
+        let badge = "🏆";
+        if (totalScore < 1500) { title = "นักท่องเที่ยวฝึกหัด"; badge = "🥉"; }
+        else if (totalScore < 2500) { title = "เซียนมือใหม่"; badge = "🥈"; }
+        
+        document.getElementById('final-title').innerText = `ระดับ: ${title}`;
+        document.getElementById('final-badge').innerText = badge;
+
+        saveScoreToFirebase(playerName, totalScore, savedAvatarHTML);
+      }
     }
 
     function shareResult() {
-      const shareText = `🎮 ฉันเล่นเกม "เซียนบางแสน" จบแล้ว ได้คะแนนรวม ${totalScore} คะแนน! มาลองเล่นแข่งกันเถอะ: ${window.location.href}`;
-      if (navigator.clipboard) {
-        navigator.clipboard.writeText(shareText).then(() => {
-          alert("คัดลอกผลลัพธ์เรียบร้อย! นำไปวางแชร์ใน Facebook ได้เลยครับ");
-        });
-      } else {
-        alert(shareText);
-      }
+      const shareText = `🎮 ผมเล่นเกม "เซียนบางแสน" จบแล้ว ได้ ${totalScore} คะแนน! ระดับ: ${document.getElementById('final-title').innerText} มาลองเล่นกันเถอะ!`;
+      navigator.clipboard.writeText(shareText).then(() => {
+        alert("คัดลอกผลลัพธ์แล้ว! นำไปโพสต์หรือแชร์ให้เพื่อนๆ ดูได้เลยครับ");
+      });
     }
-	// 🌟 ฟังก์ชันคำนวณระดับตามคะแนนที่ทำได้
-    function getRankTitle(score) {
-      if (score >= 3000) return { title: "👑 มหาเซียนบางแสน", badge: "👑" };
-      if (score >= 2000) return { title: "🔥 เซียนมือฉมัง", badge: "🔥" };
-      if (score >= 1000) return { title: "🌊 นักท่องเที่ยวขาประจำ", badge: "🌊" };
-      return { title: "🏝️ ชาวเกาะมือใหม่", badge: "🏝️" };
-    }
-
-    // 🌟 ฟังก์ชันคัดลอกข้อความคะแนน + เปิดหน้าแชร์ Facebook
-function shareToFacebook() {
-  const shareText = `🎮 ฉันได้คะแนน ${totalScore} คะแนน ในเกม "เซียนบางแสน"! มาลองทายพิกัดแข่งกันเถอะ: ${window.location.href}`;
-  
-  // 1. คัดลอกข้อความเตรียมไว้ให้ผู้เล่นวาง (Paste)
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(shareText);
-  }
-
-  // 2. เปิดหน้าต่างแชร์ของ Facebook (ผู้เล่นเลือกแชร์ลงฟีด หรือลงเพจตัวเองได้)
-  const shareUrl = window.location.href;
-  const fbShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
-  
-  alert("📋 คัดลอกผลคะแนนเรียบร้อยแล้ว!\nระบบกำลังพาไปหน้า Facebook ให้คุณกด 'วาง' (Paste) เพื่อโพสต์ลงฟีดหรือเพจของคุณได้เลยครับ");
-  window.open(fbShareUrl, '_blank', 'width=600,height=500');
-}
   </script>
 </body>
 </html>
