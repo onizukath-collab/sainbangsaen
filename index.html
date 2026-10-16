@@ -132,7 +132,6 @@
       });
     };
 
-    // 🚀 บันทึกคะแนนตรงเข้า Firebase Firestore
     window.saveScoreToFirebase = async function(playerName, totalScore, avatarHTML) {
       try {
         await addDoc(collection(db, "leaderboard"), {
@@ -330,7 +329,6 @@
 
         <input type="file" id="avatar-upload" accept="image/*" style="display: none;">
 
-        <!-- ⚡ ระบบบีบอัดรูปภาพอัตโนมัติให้ไฟล์เบาหวิว ไม่ค้างบน Facebook/Line -->
         <script>
           document.getElementById('avatar-upload').addEventListener('change', function(event) {
             const file = event.target.files[0];
@@ -341,12 +339,10 @@
                 img.onload = function() {
                   const canvas = document.createElement('canvas');
                   const ctx = canvas.getContext('2d');
-                  // บีบย่อขนาดเหลือ 80x80px ทันที
                   canvas.width = 80;
                   canvas.height = 80;
                   ctx.drawImage(img, 0, 0, 80, 80);
                   
-                  // แปลงเป็น JPG ความละเอียดพอดี เซฟเบามากๆ
                   const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
 
                   const imgElement = document.getElementById('avatar-img-preview');
@@ -445,21 +441,22 @@
 
   </div>
 
-  <!-- 🌟 หน้าต่างแสดงคูปองแบบ Popup -->
+  <!-- 🌟 หน้าต่างแสดงคูปองแบบแปลงเป็นรูปภาพให้กดค้างเซฟได้ทันที -->
   <div id="coupon-modal-overlay">
     <div class="coupon-modal-card">
       <div style="background: #ffffff; border: 2px dashed #ea580c; border-radius: 12px; padding: 15px; text-align: center;">
-        <p style="font-size: 13px; color: #d97706; margin: 0 0 10px 0; font-weight: bold;">🎁 ยินดีด้วย! คุณได้รับคูปองส่วนลด</p>
-        <img id="coupon-modal-img" src="" alt="คูปอง" style="width: 100%; max-height: 160px; object-fit: cover; border-radius: 8px;">
-        <p id="coupon-modal-name" style="font-weight: bold; color: #1e293b; margin: 10px 0 4px 0; font-size: 14px;"></p>
-        <span id="coupon-modal-promo" style="display: inline-block; background: #ffedd5; color: #c2410c; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold;"></span>
+        <p style="font-size: 13px; color: #d97706; margin: 0 0 8px 0; font-weight: bold;">🎁 ยินดีด้วย! คุณได้รับคูปองส่วนลด</p>
+        
+        <!-- ช่องแสดงรูปคูปองที่จะถูกสร้างขึ้นมาอัตโนมัติ (ผู้เล่นกดค้างเพื่อบันทึกรูปได้เลย) -->
+        <div id="coupon-image-container" style="margin-bottom: 8px;"></div>
+        
+        <p style="font-size: 11px; color: #64748b; margin: 0; background: #fef3c7; padding: 4px; border-radius: 4px;">
+          📱 <b>วิธีบันทึก:</b> กดค้างที่รูปภาพคูปองด้านบน แล้วเลือก <b>"บันทึกรูปภาพ" (Save Image)</b> เพื่อเก็บไว้ใช้หน้าร้าน
+        </p>
       </div>
 
-      <div style="margin-top: 15px; display: flex; flex-direction: column; gap: 8px;">
-        <button onclick="generateAndDownloadCouponImage()" style="background: #16a34a; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px;">
-          📥 ดาวน์โหลดภาพคูปอง (เก็บบันทึกเครื่อง)
-        </button>
-        <button onclick="closeCouponModal()" style="background: #0284c7; color: white; border: none; padding: 8px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px;">
+      <div style="margin-top: 15px;">
+        <button onclick="closeCouponModal()" style="background: #0284c7; color: white; border: none; width: 100%; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px;">
           ปิดหน้าต่าง / เล่นต่อ
         </button>
       </div>
@@ -695,33 +692,22 @@
         document.getElementById('final-score').innerText = totalScore;
         document.getElementById('final-player-info').innerHTML = `${savedAvatarHTML} <span>${playerName}</span>`;
         
-        // 🚀 ส่งคะแนนขึ้นไปเก็บบน Firebase Firestore โดยตรง
         if (typeof window.saveScoreToFirebase === 'function') {
           window.saveScoreToFirebase(playerName, totalScore, savedAvatarHTML);
         }
       }
     }
 
+    // 🌟 ระบบวาดคูปองเป็นรูปภาพแล้วแสดงผลบนหน้าจอทันที (กดค้างเซฟรูปได้เลย)
     function showCouponModal(item) {
       activeCouponData = item;
-      document.getElementById('coupon-modal-img').src = item.img;
-      document.getElementById('coupon-modal-name').innerText = item.name;
-      document.getElementById('coupon-modal-promo').innerText = item.promo;
-      document.getElementById('coupon-modal-overlay').style.display = 'flex';
-    }
-
-    function closeCouponModal() {
-      document.getElementById('coupon-modal-overlay').style.display = 'none';
-    }
-
-    function generateAndDownloadCouponImage() {
-      if (!activeCouponData) return;
+      const container = document.getElementById('coupon-image-container');
+      container.innerHTML = "กำลังสร้างภาพคูปอง...";
 
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
-      
       canvas.width = 600;
-      canvas.height = 500;
+      canvas.height = 480;
 
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -734,7 +720,7 @@
       ctx.fillStyle = "#d97706";
       ctx.font = "bold 20px 'Kanit', sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText("🎁 ยินดีด้วย! คุณได้รับคูปองส่วนลด", canvas.width / 2, 65);
+      ctx.fillText("🎁 คูปองส่วนลดพิเศษจากเกมเซียนบางแสน", canvas.width / 2, 65);
 
       const img = new Image();
       img.crossOrigin = "anonymous";
@@ -743,7 +729,7 @@
 
         ctx.fillStyle = "#1e293b";
         ctx.font = "bold 22px 'Kanit', sans-serif";
-        ctx.fillText(activeCouponData.name, canvas.width / 2, 345);
+        ctx.fillText(item.name, canvas.width / 2, 345);
 
         ctx.fillStyle = "#ffedd5";
         ctx.beginPath();
@@ -756,14 +742,19 @@
 
         ctx.fillStyle = "#c2410c";
         ctx.font = "bold 18px 'Kanit', sans-serif";
-        ctx.fillText(activeCouponData.promo, canvas.width / 2, 398);
+        ctx.fillText(item.promo, canvas.width / 2, 398);
 
-        const link = document.createElement('a');
-        link.download = 'coupon-sainbangsaen.png';
-        link.href = canvas.toDataURL('image/png');
-        link.click();
+        // แปลงแคนวาสเป็นรูปภาพแล้วเอามาแปะในหน้าจอ
+        const finalImgUrl = canvas.toDataURL('image/png');
+        container.innerHTML = `<img src="${finalImgUrl}" alt="คูปองส่วนลด" style="width: 100%; max-height: 200px; object-fit: contain; border-radius: 8px; border: 1px solid #cbd5e1;">`;
       };
-      img.src = activeCouponData.img;
+      img.src = item.img;
+
+      document.getElementById('coupon-modal-overlay').style.display = 'flex';
+    }
+
+    function closeCouponModal() {
+      document.getElementById('coupon-modal-overlay').style.display = 'none';
     }
 
     function shareResult() {
