@@ -428,16 +428,25 @@
       </div>
     </div>
 
-    <!-- 3. หน้าจอสรุปผลคะแนน -->
+   <!-- 3. หน้าจอสรุปผลคะแนน -->
     <div id="final-screen">
       <h1>🎉 สรุปผลการเล่น</h1>
-      <div id="final-player-info" style="font-weight: bold; color: #0284c7; font-size: 18px; margin-bottom: 5px; display: flex; align-items: center; justify-content: center; gap: 8px;"></div>
-      <div class="badge" id="final-badge">🥇</div>
-      <h2 id="final-title" style="color:#0284c7; margin:5px 0;">ระดับ: เซียนบางแสน</h2>
-      <p style="font-size: 16px;">คุณทำคะแนนรวมได้: <b id="final-score" style="color:#e11d48; font-size:22px;">0</b> คะแนน</p>
       
-      <button class="main-btn share-btn" onclick="shareResult()">📋 คัดลอกผลลัพธ์ไปแชร์เพื่อน</button>
-      <button class="main-btn" onclick="location.reload()" style="background:#64748b; margin-top:10px;">🔄 เล่นใหม่อีกครั้ง</button>
+      <!-- 🌟 จัดรูปผู้เล่นให้อยู่กลาง และชื่ออยู่ใต้ภาพ -->
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 15px 0; gap: 8px;">
+        <div id="final-player-avatar" style="width: 70px; height: 70px; border-radius: 50%; overflow: hidden; border: 3px solid #0284c7; background: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.15);"></div>
+        <div id="final-player-name" style="font-weight: bold; color: #0284c7; font-size: 18px;">นักท่องเที่ยว</div>
+      </div>
+
+      <div class="badge" id="final-badge">🥇</div>
+      <h2 id="final-title" style="color:#0284c7; margin:5px 0;">ระดับ: มหาเซียนบางแสน</h2>
+      <p style="font-size: 16px; margin: 10px 0;">คุณทำคะแนนรวมได้: <b id="final-score" style="color:#e11d48; font-size:24px;">0</b> คะแนน</p>
+      
+      <!-- 🚀 ปุ่มแชร์และเล่นใหม่ -->
+      <!-- ปุ่มแชร์ไปยัง Facebook / เพจของผู้เล่น -->
+      <button class="main-btn share-btn" onclick="shareToFacebook()" style="background: #1877f2; margin-top: 10px;">📘 แชร์ผลลัพธ์ลง Facebook / เพจของคุณ
+      <button class="main-btn" onclick="shareResult()" style="background: #16a34a; margin-top: 8px;">📋 คัดลอกข้อความไปแชร์</button>
+      <button class="main-btn" onclick="location.reload()" style="background:#64748b; margin-top:8px;">🔄 เล่นใหม่อีกครั้ง</button>
     </div>
 
   </div>
@@ -673,7 +682,7 @@
       }
 
       document.getElementById('result-msg').innerHTML = `
-        🎯 ระยะห่าง: ${dist} เมตร | ได้ +${score} คะแนน
+        🎯 ได้ +${score} คะแนน
         ${promoHtml}
         <div style="margin-top:6px; display:flex; gap:6px; flex-wrap:wrap; justify-content:center;">
           ${btnMapsHtml}
@@ -700,8 +709,15 @@
       } else {
         document.getElementById('play-screen').style.display = "none";
         document.getElementById('final-screen').style.display = "block";
+        
         document.getElementById('final-score').innerText = totalScore;
-        document.getElementById('final-player-info').innerHTML = `${savedAvatarHTML} <span>${playerName}</span>`;
+        document.getElementById('final-player-avatar').innerHTML = savedAvatarHTML;
+        document.getElementById('final-player-name').innerText = playerName;
+
+        // คำนวณและแสดงระดับตามคะแนน
+        const rankInfo = getRankTitle(totalScore);
+        document.getElementById('final-title').innerText = `ระดับ: ${rankInfo.title}`;
+        document.getElementById('final-badge').innerText = rankInfo.badge;
         
         if (typeof window.saveScoreToFirebase === 'function') {
           window.saveScoreToFirebase(playerName, totalScore, savedAvatarHTML);
@@ -776,6 +792,30 @@
         alert(shareText);
       }
     }
+	// 🌟 ฟังก์ชันคำนวณระดับตามคะแนนที่ทำได้
+    function getRankTitle(score) {
+      if (score >= 3000) return { title: "👑 มหาเซียนบางแสน", badge: "👑" };
+      if (score >= 2000) return { title: "🔥 เซียนมือฉมัง", badge: "🔥" };
+      if (score >= 1000) return { title: "🌊 นักท่องเที่ยวขาประจำ", badge: "🌊" };
+      return { title: "🏝️ ชาวเกาะมือใหม่", badge: "🏝️" };
+    }
+
+    // 🌟 ฟังก์ชันคัดลอกข้อความคะแนน + เปิดหน้าแชร์ Facebook
+function shareToFacebook() {
+  const shareText = `🎮 ฉันได้คะแนน ${totalScore} คะแนน ในเกม "เซียนบางแสน"! มาลองทายพิกัดแข่งกันเถอะ: ${window.location.href}`;
+  
+  // 1. คัดลอกข้อความเตรียมไว้ให้ผู้เล่นวาง (Paste)
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(shareText);
+  }
+
+  // 2. เปิดหน้าต่างแชร์ของ Facebook (ผู้เล่นเลือกแชร์ลงฟีด หรือลงเพจตัวเองได้)
+  const shareUrl = window.location.href;
+  const fbShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
+  
+  alert("📋 คัดลอกผลคะแนนเรียบร้อยแล้ว!\nระบบกำลังพาไปหน้า Facebook ให้คุณกด 'วาง' (Paste) เพื่อโพสต์ลงฟีดหรือเพจของคุณได้เลยครับ");
+  window.open(fbShareUrl, '_blank', 'width=600,height=500');
+}
   </script>
 </body>
 </html>
