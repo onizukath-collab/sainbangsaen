@@ -10,48 +10,6 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <!-- 🚀 สคริปต์ตรวจจับและบังคับเปิดเบราว์เซอร์หลัก (แก้ปัญหาเซฟไม่ได้ใน Facebook/Line) -->
-  <script>
-    window.addEventListener('DOMContentLoaded', () => {
-      const ua = navigator.userAgent || navigator.vendor || window.opera;
-      const isAndroid = /android/i.test(ua);
-      const isIOS = /iphone|ipad|ipod/i.test(ua);
-      const isFB = /FBAN|FBAV|FB_IAB/i.test(ua);
-      const isLine = /Line/i.test(ua);
-
-      if ((isFB || isLine) && (isAndroid || isIOS)) {
-        const banner = document.createElement('div');
-        banner.style.cssText = `
-          position: fixed; top: 0; left: 0; width: 100%; background: #ffcc00; color: #333;
-          padding: 12px 16px; text-align: center; font-family: 'Kanit', sans-serif; font-size: 14px;
-          z-index: 999999; box-shadow: 0 2px 10px rgba(0,0,0,0.3); display: flex;
-          flex-direction: column; align-items: center; gap: 8px;
-        `;
-        
-        const currentUrl = window.location.href;
-        let redirectHtml = `<span>⚠️ กำลังเปิดใน Facebook/Line อาจทำให้บันทึกคะแนน/เซฟเกมไม่ได้!</span>`;
-        
-        if (isAndroid) {
-          const cleanUrl = currentUrl.replace(/^https?:\/\//i, '');
-          const intentUrl = `intent://${cleanUrl}#Intent;scheme=https;package=com.android.chrome;end;`;
-          
-          banner.innerHTML = `
-            ${redirectHtml}
-            <a href="${intentUrl}" style="background: #000; color: #fff; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-weight: bold;">
-              🚀 กดที่นี่เพื่อเปิดใน Chrome (เล่นและเซฟได้ปกติ)
-            </a>
-          `;
-        } else if (isIOS) {
-          banner.innerHTML = `
-            ${redirectHtml}
-            <span>👉 กรุณากดปุ่ม <b>... (จุดสามจุด)</b> มุมขวาบน แล้วเลือก <b>"เปิดใน Safari"</b></span>
-          `;
-        }
-        document.body.prepend(banner);
-      }
-    });
-  </script>
-
   <!-- 🌟 Firebase App & Firestore SDK (CDN) -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -174,6 +132,7 @@
       });
     };
 
+    // 🚀 บันทึกคะแนนตรงเข้า Firebase Firestore
     window.saveScoreToFirebase = async function(playerName, totalScore, avatarHTML) {
       try {
         await addDoc(collection(db, "leaderboard"), {
@@ -371,20 +330,35 @@
 
         <input type="file" id="avatar-upload" accept="image/*" style="display: none;">
 
+        <!-- ⚡ ระบบบีบอัดรูปภาพอัตโนมัติให้ไฟล์เบาหวิว ไม่ค้างบน Facebook/Line -->
         <script>
           document.getElementById('avatar-upload').addEventListener('change', function(event) {
             const file = event.target.files[0];
             if (file) {
               const reader = new FileReader();
               reader.onload = function(e) {
-                const imgElement = document.getElementById('avatar-img-preview');
-                const placeholder = document.getElementById('upload-placeholder');
-                
-                imgElement.src = e.target.result;
-                imgElement.style.display = 'block';
-                if (placeholder) {
-                  placeholder.style.display = 'none';
-                }
+                const img = new Image();
+                img.onload = function() {
+                  const canvas = document.createElement('canvas');
+                  const ctx = canvas.getContext('2d');
+                  // บีบย่อขนาดเหลือ 80x80px ทันที
+                  canvas.width = 80;
+                  canvas.height = 80;
+                  ctx.drawImage(img, 0, 0, 80, 80);
+                  
+                  // แปลงเป็น JPG ความละเอียดพอดี เซฟเบามากๆ
+                  const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+
+                  const imgElement = document.getElementById('avatar-img-preview');
+                  const placeholder = document.getElementById('upload-placeholder');
+                  
+                  imgElement.src = compressedBase64;
+                  imgElement.style.display = 'block';
+                  if (placeholder) {
+                    placeholder.style.display = 'none';
+                  }
+                };
+                img.src = e.target.result;
               };
               reader.readAsDataURL(file);
             }
@@ -721,6 +695,7 @@
         document.getElementById('final-score').innerText = totalScore;
         document.getElementById('final-player-info').innerHTML = `${savedAvatarHTML} <span>${playerName}</span>`;
         
+        // 🚀 ส่งคะแนนขึ้นไปเก็บบน Firebase Firestore โดยตรง
         if (typeof window.saveScoreToFirebase === 'function') {
           window.saveScoreToFirebase(playerName, totalScore, savedAvatarHTML);
         }
