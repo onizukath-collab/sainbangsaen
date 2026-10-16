@@ -1,59 +1,6 @@
 <!DOCTYPE html>
 <html lang="th">
-<script>
-  // ฟังก์ชันตรวจสอบ In-App Browser ของ Facebook และ Line
-  function checkAndRedirectBrowser() {
-    const ua = navigator.userAgent || navigator.vendor || window.opera;
-    
-    // เช็คว่าเป็นมือถือ (Android หรือ iOS) หรือไม่
-    const isAndroid = /android/i.test(ua);
-    const isIOS = /iphone|ipad|ipod/i.test(ua);
-    
-    // เช็คว่าเป็นเบราว์เซอร์ภายในแอป Facebook หรือ Line หรือไม่
-    const isFB = /FBAN|FBAV|FB_IAB/i.test(ua);
-    const isLine = /Line/i.test(ua);
 
-    if ((isFB || isLine) && (isAndroid || isIOS)) {
-      // สร้างกล่องแจ้งเตือน (Banner) สวยๆ ให้ผู้เล่นกดเปิดเอง (เพราะมือถือบางรุ่นบล็อกการเด้งอัติโนมัติ)
-      const banner = document.createElement('div');
-      banner.style.cssText = `
-        position: fixed; top: 0; left: 0; width: 100%; background: #ffcc00; color: #333;
-        padding: 12px 16px; text-align: center; font-family: sans-serif; font-size: 14px;
-        z-index: 999999; box-shadow: 0 2px 10px rgba(0,0,0,0.3); display: flex;
-        flex-direction: column; align-items: center; gap: 8px;
-      `;
-      
-      const currentUrl = window.location.href;
-      
-      let redirectHtml = `<span>⚠️ กำลังเปิดใน Facebook/Line อาจทำให้บันทึกข้อมูลไม่ได้!</span>`;
-      
-      if (isAndroid) {
-        // สำหรับ Android สามารถใช้ intent scheme บังคับเปิด Chrome ได้
-        const cleanUrl = currentUrl.replace(/^https?:\/\//i, '');
-        const intentUrl = `intent://${cleanUrl}#Intent;scheme=https;package=com.android.chrome;end;`;
-        
-        banner.innerHTML = `
-          ${redirectHtml}
-          <a href="${intentUrl}" style="background: #000; color: #fff; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-weight: bold;">
-            🚀 กดที่นี่เพื่อเปิดใน Chrome (เซฟเกมได้ปกติ)
-          </a>
-        `;
-      } else if (isIOS) {
-        // สำหรับ iOS (iPhone) แนะนำให้กดปุ่มมุมขวาบน
-        banner.innerHTML = `
-          ${redirectHtml}
-          <span>👉 กรุณากดปุ่ม <b>... (จุดสามจุด)</b> มุมขวาบน แล้วเลือก <b>"เปิดใน Safari"</b></span>
-        `;
-      }
-      
-      // แสดง Banner ไว้บนสุดของหน้าจอเกม
-      document.body.prepend(banner);
-    }
-  }
-
-  // เรียกใช้งานเมื่อโหลดหน้าเว็บเสร็จ
-  window.addEventListener('DOMContentLoaded', checkAndRedirectBrowser);
-</script>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -62,6 +9,48 @@
   <!-- Leaflet CSS & JS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- 🚀 สคริปต์ตรวจจับและบังคับเปิดเบราว์เซอร์หลัก (แก้ปัญหาเซฟไม่ได้ใน Facebook/Line) -->
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      const ua = navigator.userAgent || navigator.vendor || window.opera;
+      const isAndroid = /android/i.test(ua);
+      const isIOS = /iphone|ipad|ipod/i.test(ua);
+      const isFB = /FBAN|FBAV|FB_IAB/i.test(ua);
+      const isLine = /Line/i.test(ua);
+
+      if ((isFB || isLine) && (isAndroid || isIOS)) {
+        const banner = document.createElement('div');
+        banner.style.cssText = `
+          position: fixed; top: 0; left: 0; width: 100%; background: #ffcc00; color: #333;
+          padding: 12px 16px; text-align: center; font-family: 'Kanit', sans-serif; font-size: 14px;
+          z-index: 999999; box-shadow: 0 2px 10px rgba(0,0,0,0.3); display: flex;
+          flex-direction: column; align-items: center; gap: 8px;
+        `;
+        
+        const currentUrl = window.location.href;
+        let redirectHtml = `<span>⚠️ กำลังเปิดใน Facebook/Line อาจทำให้บันทึกคะแนน/เซฟเกมไม่ได้!</span>`;
+        
+        if (isAndroid) {
+          const cleanUrl = currentUrl.replace(/^https?:\/\//i, '');
+          const intentUrl = `intent://${cleanUrl}#Intent;scheme=https;package=com.android.chrome;end;`;
+          
+          banner.innerHTML = `
+            ${redirectHtml}
+            <a href="${intentUrl}" style="background: #000; color: #fff; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-weight: bold;">
+              🚀 กดที่นี่เพื่อเปิดใน Chrome (เล่นและเซฟได้ปกติ)
+            </a>
+          `;
+        } else if (isIOS) {
+          banner.innerHTML = `
+            ${redirectHtml}
+            <span>👉 กรุณากดปุ่ม <b>... (จุดสามจุด)</b> มุมขวาบน แล้วเลือก <b>"เปิดใน Safari"</b></span>
+          `;
+        }
+        document.body.prepend(banner);
+      }
+    });
+  </script>
 
   <!-- 🌟 Firebase App & Firestore SDK (CDN) -->
   <script type="module">
@@ -325,7 +314,6 @@
     .badge { font-size: 50px; margin: 10px 0; }
     .share-btn { background: #16a34a; margin-top: 15px; width: 100%; }
 
-    /* 🌟 สไตล์กล่องคูปอง (เลียนแบบกรอบเส้นประและหน้าตาตามรูปตัวอย่าง) */
     #coupon-modal-overlay {
       display: none;
       position: fixed;
@@ -483,11 +471,9 @@
 
   </div>
 
-  <!-- 🌟 หน้าต่างแสดงคูปองแบบ Popup พร้อมปุ่มดาวน์โหลดกรอบคูปองตามแบบเป๊ะ -->
+  <!-- 🌟 หน้าต่างแสดงคูปองแบบ Popup -->
   <div id="coupon-modal-overlay">
     <div class="coupon-modal-card">
-      
-      <!-- ตัวอย่างคูปองบนหน้าจอที่จัดสไตล์ตามรูปตัวอย่างของคุณ -->
       <div style="background: #ffffff; border: 2px dashed #ea580c; border-radius: 12px; padding: 15px; text-align: center;">
         <p style="font-size: 13px; color: #d97706; margin: 0 0 10px 0; font-weight: bold;">🎁 ยินดีด้วย! คุณได้รับคูปองส่วนลด</p>
         <img id="coupon-modal-img" src="" alt="คูปอง" style="width: 100%; max-height: 160px; object-fit: cover; border-radius: 8px;">
@@ -496,7 +482,6 @@
       </div>
 
       <div style="margin-top: 15px; display: flex; flex-direction: column; gap: 8px;">
-        <!-- 📸 ปุ่มดาวน์โหลดภาพคูปองออกมาเป็นไฟล์ตามแบบตัวอย่าง -->
         <button onclick="generateAndDownloadCouponImage()" style="background: #16a34a; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px;">
           📥 ดาวน์โหลดภาพคูปอง (เก็บบันทึกเครื่อง)
         </button>
@@ -726,6 +711,22 @@
       document.getElementById('next-btn').style.display = "block";
     }
 
+    function nextQuestion() {
+      currentIdx++;
+      if (currentIdx < questions.length) {
+        loadQuestion();
+      } else {
+        document.getElementById('play-screen').style.display = "none";
+        document.getElementById('final-screen').style.display = "block";
+        document.getElementById('final-score').innerText = totalScore;
+        document.getElementById('final-player-info').innerHTML = `${savedAvatarHTML} <span>${playerName}</span>`;
+        
+        if (typeof window.saveScoreToFirebase === 'function') {
+          window.saveScoreToFirebase(playerName, totalScore, savedAvatarHTML);
+        }
+      }
+    }
+
     function showCouponModal(item) {
       activeCouponData = item;
       document.getElementById('coupon-modal-img').src = item.img;
@@ -738,92 +739,67 @@
       document.getElementById('coupon-modal-overlay').style.display = 'none';
     }
 
-    // 🌟 ระบบวาดและดาวน์โหลดภาพคูปองเป็นไฟล์รูปภาพ (ตรงตามสไตล์ในภาพตัวอย่างของคุณเป๊ะๆ)
     function generateAndDownloadCouponImage() {
       if (!activeCouponData) return;
 
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       
-      // กำหนดขนาดสัดส่วนความละเอียดของรูปคูปอง
       canvas.width = 600;
       canvas.height = 500;
 
-      // 1. พื้นหลังสีขาว
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // 2. วาดกรอบเส้นประสีส้ม (Dashed Border)
       ctx.strokeStyle = "#ea580c";
       ctx.lineWidth = 4;
       ctx.setLineDash([8, 6]);
       ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
 
-      // 3. ข้อความหัวข้อด้านบน
       ctx.fillStyle = "#d97706";
       ctx.font = "bold 20px 'Kanit', sans-serif";
       ctx.textAlign = "center";
       ctx.fillText("🎁 ยินดีด้วย! คุณได้รับคูปองส่วนลด", canvas.width / 2, 65);
 
-      // 4. โหลดรูปภาพสินค้า/ร้านค้ามาวาดลงบน Canvas
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.onload = function() {
-        // วาดรูปภาพตรงกลาง (กว้าง 480px สูง 220px)
         ctx.drawImage(img, 60, 90, 480, 220);
 
-        // 5. ชื่อร้าน
         ctx.fillStyle = "#1e293b";
         ctx.font = "bold 22px 'Kanit', sans-serif";
         ctx.fillText(activeCouponData.name, canvas.width / 2, 345);
 
-        // 6. แถบป้ายโปรโมชันโค้งมนด้านล่าง
         ctx.fillStyle = "#ffedd5";
         ctx.beginPath();
-        ctx.roundRect(120, 370, 360, 45, 22);
+        if (ctx.roundRect) {
+          ctx.roundRect(120, 370, 360, 45, 22);
+        } else {
+          ctx.rect(120, 370, 360, 45);
+        }
         ctx.fill();
 
-        // ข้อความโปรโมชันในป้าย
         ctx.fillStyle = "#c2410c";
         ctx.font = "bold 18px 'Kanit', sans-serif";
-        ctx.fillText(activeCouponData.promo, canvas.width / 2, 399);
+        ctx.fillText(activeCouponData.promo, canvas.width / 2, 398);
 
-        // 7. สั่งดาวน์โหลดไฟล์ภาพอัตโนมัติ (ใช้งานได้ทั้งบนคอมและมือถือ)
         const link = document.createElement('a');
-        link.download = 'bangsaen-coupon.png';
+        link.download = 'coupon-sainbangsaen.png';
         link.href = canvas.toDataURL('image/png');
         link.click();
       };
       img.src = activeCouponData.img;
     }
 
-    function nextQuestion() {
-      currentIdx++;
-      if (currentIdx < questions.length) {
-        loadQuestion();
-      } else {
-        document.getElementById('play-screen').style.display = "none";
-        document.getElementById('final-screen').style.display = "block";
-        document.getElementById('final-score').innerText = totalScore;
-        document.getElementById('final-player-info').innerHTML = `<div style="width:32px;height:32px;border-radius:50%;overflow:hidden;border:1px solid #0284c7;display:inline-flex;align-items:center;justify-content:center;">${savedAvatarHTML}</div> ${playerName}`;
-        
-        let title = "เซียนบางแสนตัวจริง";
-        let badge = "🏆";
-        if (totalScore < 1500) { title = "นักท่องเที่ยวฝึกหัด"; badge = "🥉"; }
-        else if (totalScore < 2500) { title = "เซียนมือใหม่"; badge = "🥈"; }
-        
-        document.getElementById('final-title').innerText = `ระดับ: ${title}`;
-        document.getElementById('final-badge').innerText = badge;
-
-        saveScoreToFirebase(playerName, totalScore, savedAvatarHTML);
-      }
-    }
-
     function shareResult() {
-      const shareText = `🎮 ผมเล่นเกม "เซียนบางแสน" จบแล้ว ได้ ${totalScore} คะแนน! ระดับ: ${document.getElementById('final-title').innerText} มาลองเล่นกันเถอะ!`;
-      navigator.clipboard.writeText(shareText).then(() => {
-        alert("คัดลอกผลลัพธ์แล้ว! นำไปโพสต์หรือแชร์ให้เพื่อนๆ ดูได้เลยครับ");
-      });
+      const shareText = `🎮 ฉันเล่นเกม "เซียนบางแสน" จบแล้ว ได้คะแนนรวม ${totalScore} คะแนน! มาลองเล่นแข่งกันเถอะ: ${window.location.href}`;
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(shareText).then(() => {
+          alert("คัดลอกผลลัพธ์เรียบร้อย! นำไปวางแชร์ใน Facebook ได้เลยครับ");
+        });
+      } else {
+        alert(shareText);
+      }
     }
   </script>
 </body>
