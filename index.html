@@ -1,5 +1,59 @@
 <!DOCTYPE html>
 <html lang="th">
+<script>
+  // ฟังก์ชันตรวจสอบ In-App Browser ของ Facebook และ Line
+  function checkAndRedirectBrowser() {
+    const ua = navigator.userAgent || navigator.vendor || window.opera;
+    
+    // เช็คว่าเป็นมือถือ (Android หรือ iOS) หรือไม่
+    const isAndroid = /android/i.test(ua);
+    const isIOS = /iphone|ipad|ipod/i.test(ua);
+    
+    // เช็คว่าเป็นเบราว์เซอร์ภายในแอป Facebook หรือ Line หรือไม่
+    const isFB = /FBAN|FBAV|FB_IAB/i.test(ua);
+    const isLine = /Line/i.test(ua);
+
+    if ((isFB || isLine) && (isAndroid || isIOS)) {
+      // สร้างกล่องแจ้งเตือน (Banner) สวยๆ ให้ผู้เล่นกดเปิดเอง (เพราะมือถือบางรุ่นบล็อกการเด้งอัติโนมัติ)
+      const banner = document.createElement('div');
+      banner.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; background: #ffcc00; color: #333;
+        padding: 12px 16px; text-align: center; font-family: sans-serif; font-size: 14px;
+        z-index: 999999; box-shadow: 0 2px 10px rgba(0,0,0,0.3); display: flex;
+        flex-direction: column; align-items: center; gap: 8px;
+      `;
+      
+      const currentUrl = window.location.href;
+      
+      let redirectHtml = `<span>⚠️ กำลังเปิดใน Facebook/Line อาจทำให้บันทึกข้อมูลไม่ได้!</span>`;
+      
+      if (isAndroid) {
+        // สำหรับ Android สามารถใช้ intent scheme บังคับเปิด Chrome ได้
+        const cleanUrl = currentUrl.replace(/^https?:\/\//i, '');
+        const intentUrl = `intent://${cleanUrl}#Intent;scheme=https;package=com.android.chrome;end;`;
+        
+        banner.innerHTML = `
+          ${redirectHtml}
+          <a href="${intentUrl}" style="background: #000; color: #fff; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-weight: bold;">
+            🚀 กดที่นี่เพื่อเปิดใน Chrome (เซฟเกมได้ปกติ)
+          </a>
+        `;
+      } else if (isIOS) {
+        // สำหรับ iOS (iPhone) แนะนำให้กดปุ่มมุมขวาบน
+        banner.innerHTML = `
+          ${redirectHtml}
+          <span>👉 กรุณากดปุ่ม <b>... (จุดสามจุด)</b> มุมขวาบน แล้วเลือก <b>"เปิดใน Safari"</b></span>
+        `;
+      }
+      
+      // แสดง Banner ไว้บนสุดของหน้าจอเกม
+      document.body.prepend(banner);
+    }
+  }
+
+  // เรียกใช้งานเมื่อโหลดหน้าเว็บเสร็จ
+  window.addEventListener('DOMContentLoaded', checkAndRedirectBrowser);
+</script>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
