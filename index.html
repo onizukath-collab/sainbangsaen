@@ -49,37 +49,58 @@
       }
     };
 
+    // ผู้เล่นที่ไม่ส่ง heartbeat เกิน 75 วินาที จะไม่ถูกนับว่าออนไลน์
+    const ONLINE_TIMEOUT_MS = 75 * 1000;
+    let latestOnlinePlayers = [];
+
+    function renderOnlinePlayers() {
+      const now = Date.now();
+      const activePlayers = latestOnlinePlayers.filter((player) => {
+        const raw = player.lastSeen;
+        const lastSeenMs = raw && typeof raw.toDate === 'function'
+          ? raw.toDate().getTime()
+          : raw instanceof Date
+            ? raw.getTime()
+            : typeof raw === 'number'
+              ? raw
+              : raw && typeof raw.seconds === 'number'
+                ? raw.seconds * 1000
+                : 0;
+        return lastSeenMs > 0 && (now - lastSeenMs) <= ONLINE_TIMEOUT_MS;
+      });
+
+      const onlineCountEl = document.getElementById('online-count-txt');
+      const onlineListEl = document.getElementById('online-players-list');
+      if (onlineCountEl) {
+        onlineCountEl.innerText = `🟢 ออนไลน์อยู่ขณะนี้: ${activePlayers.length} คน`;
+      }
+      if (onlineListEl) {
+        onlineListEl.innerHTML = activePlayers.map((data) => `
+          <div style="display:flex; align-items:center; gap:4px; background:#fff; padding:2px 6px; border-radius:20px; border:1px solid #bbf7d0; font-size:11px;">
+            <div style="width:20px; height:20px; border-radius:50%; overflow:hidden; display:flex; align-items:center; justify-content:center;">
+              ${data.avatar || ''}
+            </div>
+            <span>${data.name || 'นักท่องเที่ยว'}</span>
+          </div>
+        `).join('');
+      }
+    }
+
     window.addEventListener("beforeunload", () => {
+      // พยายามลบข้อมูลทันทีเมื่อออก แต่ระบบ timeout ยังช่วยกรณี event นี้ไม่ทำงาน
       deleteDoc(doc(db, "online_players", sessionId));
     });
 
     window.listenOnlinePlayers = function() {
       const q = collection(db, "online_players");
       onSnapshot(q, (snapshot) => {
-        const count = snapshot.size;
-        const onlineCountEl = document.getElementById('online-count-txt');
-        const onlineListEl = document.getElementById('online-players-list');
-        
-        if (onlineCountEl) {
-          onlineCountEl.innerText = `🟢 ออนไลน์อยู่ขณะนี้: ${count} คน`;
-        }
-
-        if (onlineListEl) {
-          let html = "";
-          snapshot.forEach((docSnap) => {
-            let data = docSnap.data();
-            html += `
-              <div style="display: flex; align-items: center; gap: 4px; background: #fff; padding: 2px 6px; border-radius: 20px; border: 1px solid #bbf7d0; font-size: 11px;">
-                <div style="width: 20px; height: 20px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center;">
-                  ${data.avatar}
-                </div>
-                <span>${data.name}</span>
-              </div>
-            `;
-          });
-          onlineListEl.innerHTML = html;
-        }
+        latestOnlinePlayers = snapshot.docs.map((docSnap) => docSnap.data());
+        renderOnlinePlayers();
+      }, (error) => {
+        console.error('Error listening to online players:', error);
       });
+      // อัปเดตหน้าจอเป็นระยะ เพื่อให้รายการเก่าหายไปแม้ไม่มี Firestore change event
+      setInterval(renderOnlinePlayers, 15000);
     };
 
     window.sendChatMessage = async function(msgText) {
@@ -191,6 +212,12 @@
       setTimeout(() => {
         const defaultAvatar = window.getAvatarHTML ? window.getAvatarHTML() : document.getElementById('character-preview').innerHTML;
         updateOnlinePresence("นักท่องเที่ยว", defaultAvatar);
+        // Heartbeat ป้องกันสถานะออนไลน์ค้างเมื่อปิดแท็บ/หลุดเครือข่าย
+        setInterval(() => {
+          const name = document.getElementById('username-input')?.value.trim() || "นักท่องเที่ยว";
+          const avatar = window.getAvatarHTML ? window.getAvatarHTML() : defaultAvatar;
+          updateOnlinePresence(name, avatar);
+        }, 25000);
       }, 500);
     });
   </script>
@@ -217,7 +244,6 @@
       position: relative; min-height: 500px;
     }
 
-    /* 🌟 ป้องกันรูปโปรไฟล์ผู้เล่นยืด บีบอัดเข้าทรงวงกลมสมบูรณ์ */
     #character-preview img, 
     .player-avatar-mini img, 
     #final-player-avatar img {
@@ -227,7 +253,6 @@
       border-radius: 50% !important;
     }
 
-    /* 📍 หมุดรูปทรงหยดน้ำปลายแหลมสีส้ม + วงกลมรูปโปรไฟล์ตรงกลาง */
     .pin-marker-container {
       position: relative;
       width: 46px;
@@ -352,7 +377,7 @@
       
       <div class="input-group" style="margin-bottom: 5px;">
         <label>ชื่อผู้เล่นของคุณ:</label>
-        <input type="text" id="username-input" placeholder="เช่น น้องตั้ม บางแสน" maxlength="20" value="">
+        <input type="text" id="username-input" placeholder="เช่น น้องตั้ม บางแสน" maxlength="20" value="" oninput="playSound('click')">
       </div>
 
       <div class="avatar-builder-container">
@@ -369,39 +394,6 @@
         </label>
 
         <input type="file" id="avatar-upload" accept="image/*" style="display: none;">
-
-        <script>
-          document.getElementById('avatar-upload').addEventListener('change', function(event) {
-            playSound('photo');
-            const file = event.target.files[0];
-            if (file) {
-              const reader = new FileReader();
-              reader.onload = function(e) {
-                const img = new Image();
-                img.onload = function() {
-                  const canvas = document.createElement('canvas');
-                  const ctx = canvas.getContext('2d');
-                  canvas.width = 80;
-                  canvas.height = 80;
-                  ctx.drawImage(img, 0, 0, 80, 80);
-                  
-                  const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
-
-                  const imgElement = document.getElementById('avatar-img-preview');
-                  const placeholder = document.getElementById('upload-placeholder');
-                  
-                  imgElement.src = compressedBase64;
-                  imgElement.style.display = 'block';
-                  if (placeholder) {
-                    placeholder.style.display = 'none';
-                  }
-                };
-                img.src = e.target.result;
-              };
-              reader.readAsDataURL(file);
-            }
-          });
-        </script>
       </div>
 
       <button class="main-btn" onclick="startJourney()">เริ่มเกมกันเลย!</button>
@@ -480,11 +472,11 @@
 
       <div class="badge" id="final-badge">🥇</div>
       <h2 id="final-title" style="color:#0284c7; margin:5px 0;">ระดับ: มหาเซียนบางแสน</h2>
-      <p style="font-size: 16px; margin: 10px 0;">คุณทำคะแนนรวมได้: <b id="final-score" style="color:#e11d48; font-size:24px;">0</b> คะแนน</p>
+      <p style="font-size: 18px; margin: 10px 0;">คะแนนรวมของคุณ: <b id="final-score" style="color:#e11d48; font-size:26px;">0</b> คะแนน</p>
       
       <button class="main-btn share-btn" onclick="shareToFacebook()" style="background: #1877f2; margin-top: 10px;">📘 แชร์ผลลัพธ์ลง Facebook / เพจของคุณ</button>
       <button class="main-btn" onclick="shareResult()" style="background: #16a34a; margin-top: 8px;">📋 คัดลอกข้อความไปแชร์</button>
-      <button class="main-btn" onclick="location.reload()" style="background:#64748b; margin-top:8px;">🔄 เล่นใหม่อีกครั้ง</button>
+      <button class="main-btn" onclick="restartGame()" style="background:#64748b; margin-top:8px;">🔄 เล่นใหม่อีกครั้ง</button>
     </div>
 
   </div>
@@ -511,94 +503,145 @@
   </div>
 
   <script>
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
+    // 🔊 ฟังก์ชันเล่นเสียงแบบสร้างสังเคราะห์สด (แก้ Autoplay Policy ชัวร์ 100%)
     function playSound(type) {
-      if (!audioCtx) return;
-      if (audioCtx.state === 'suspended') { audioCtx.resume(); }
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const now = ctx.currentTime;
 
-      const now = audioCtx.currentTime;
-
-      if (type === 'click') {
-        const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.type = 'sine'; osc.frequency.setValueAtTime(450, now);
-        osc.frequency.exponentialRampToValueAtTime(150, now + 0.05);
-        gain.gain.setValueAtTime(0.12, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
-        osc.start(now); osc.stop(now + 0.05);
-      } 
-      else if (type === 'photo') {
-        const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.type = 'square'; osc.frequency.setValueAtTime(800, now);
-        osc.frequency.exponentialRampToValueAtTime(1200, now + 0.08);
-        gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
-        osc.start(now); osc.stop(now + 0.08);
-      }
-      else if (type === 'pin') {
-        const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.type = 'triangle'; osc.frequency.setValueAtTime(300, now);
-        osc.frequency.exponentialRampToValueAtTime(600, now + 0.1);
-        gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-        osc.start(now); osc.stop(now + 0.1);
-      }
-      else if (type === 'start') {
-        [261.63, 329.63, 392.00, 523.25].forEach((freq, idx) => {
-          const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
-          osc.connect(gain); gain.connect(audioCtx.destination);
-          osc.type = 'sine'; osc.frequency.setValueAtTime(freq, now + idx * 0.06);
-          gain.gain.setValueAtTime(0.15, now + idx * 0.06);
-          gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.06 + 0.12);
-          osc.start(now + idx * 0.06); osc.stop(now + idx * 0.06 + 0.12);
-        });
-      }
-      else if (type === 'submit') {
-        const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.type = 'triangle'; osc.frequency.setValueAtTime(523.25, now);
-        osc.frequency.setValueAtTime(659.25, now + 0.08);
-        gain.gain.setValueAtTime(0.15, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
-        osc.start(now); osc.stop(now + 0.25);
-      }
-      else if (type === 'highScore') {
-        [523.25, 659.25, 783.99, 1046.50, 1318.51].forEach((freq, idx) => {
-          const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
-          osc.connect(gain); gain.connect(audioCtx.destination);
-          osc.type = 'sine'; osc.frequency.setValueAtTime(freq, now + idx * 0.08);
-          gain.gain.setValueAtTime(0.18, now + idx * 0.08);
-          gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.08 + 0.3);
-          osc.start(now + idx * 0.08); osc.stop(now + idx * 0.08 + 0.3);
-        });
-      }
-      else if (type === 'couponSurprise') {
-        const notes = [
-          { f: 523.25, t: 0 }, { f: 659.25, t: 0.1 }, { f: 783.99, t: 0.2 },
-          { f: 1046.50, t: 0.3 }, { f: 880.00, t: 0.45 }, { f: 1046.50, t: 0.6 }
-        ];
-        notes.forEach(note => {
-          const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
-          osc.connect(gain); gain.connect(audioCtx.destination);
-          osc.type = 'triangle'; osc.frequency.setValueAtTime(note.f, now + note.t);
-          const duration = note.t === 0.6 ? 0.5 : 0.12;
-          gain.gain.setValueAtTime(0.2, now + note.t);
-          gain.gain.exponentialRampToValueAtTime(0.01, now + note.t + duration);
-          osc.start(now + note.t); osc.stop(now + note.t + duration);
-        });
-      }
-      else if (type === 'success') {
-        const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(523.25, now);
-        osc.frequency.setValueAtTime(659.25, now + 0.08);
-        osc.frequency.setValueAtTime(783.99, now + 0.16);
-        osc.frequency.setValueAtTime(1046.50, now + 0.24);
-        gain.gain.setValueAtTime(0.15, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
-        osc.start(now); osc.stop(now + 0.4);
+        if (type === 'click') {
+          const osc = ctx.createOscillator(); const gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.type = 'sine'; osc.frequency.setValueAtTime(450, now);
+          osc.frequency.exponentialRampToValueAtTime(150, now + 0.05);
+          gain.gain.setValueAtTime(0.12, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+          osc.start(now); osc.stop(now + 0.05);
+        } 
+        else if (type === 'photo') {
+          const osc = ctx.createOscillator(); const gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.type = 'square'; osc.frequency.setValueAtTime(800, now);
+          osc.frequency.exponentialRampToValueAtTime(1200, now + 0.08);
+          gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+          osc.start(now); osc.stop(now + 0.08);
+        }
+        else if (type === 'pin') {
+          const osc = ctx.createOscillator(); const gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.type = 'triangle'; osc.frequency.setValueAtTime(300, now);
+          osc.frequency.exponentialRampToValueAtTime(600, now + 0.1);
+          gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+          osc.start(now); osc.stop(now + 0.1);
+        }
+        else if (type === 'start') {
+          [261.63, 329.63, 392.00, 523.25].forEach((freq, idx) => {
+            const osc = ctx.createOscillator(); const gain = ctx.createGain();
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.type = 'sine'; osc.frequency.setValueAtTime(freq, now + idx * 0.06);
+            gain.gain.setValueAtTime(0.15, now + idx * 0.06);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.06 + 0.12);
+            osc.start(now + idx * 0.06); osc.stop(now + idx * 0.06 + 0.12);
+          });
+        }
+        else if (type === 'submit') {
+          const osc = ctx.createOscillator(); const gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.type = 'triangle'; osc.frequency.setValueAtTime(523.25, now);
+          osc.frequency.setValueAtTime(659.25, now + 0.08);
+          gain.gain.setValueAtTime(0.15, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+          osc.start(now); osc.stop(now + 0.25);
+        }
+        else if (type === 'highScore') {
+          [523.25, 659.25, 783.99, 1046.50, 1318.51].forEach((freq, idx) => {
+            const osc = ctx.createOscillator(); const gain = ctx.createGain();
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.type = 'sine'; osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+            gain.gain.setValueAtTime(0.18, now + idx * 0.08);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.08 + 0.3);
+            osc.start(now + idx * 0.08); osc.stop(now + idx * 0.08 + 0.3);
+          });
+        }
+        else if (type === 'couponSurprise') {
+          const notes = [
+            { f: 523.25, t: 0 }, { f: 659.25, t: 0.1 }, { f: 783.99, t: 0.2 },
+            { f: 1046.50, t: 0.3 }, { f: 880.00, t: 0.45 }, { f: 1046.50, t: 0.6 }
+          ];
+          notes.forEach(note => {
+            const osc = ctx.createOscillator(); const gain = ctx.createGain();
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.type = 'triangle'; osc.frequency.setValueAtTime(note.f, now + note.t);
+            const duration = note.t === 0.6 ? 0.5 : 0.12;
+            gain.gain.setValueAtTime(0.2, now + note.t);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + note.t + duration);
+            osc.start(now + note.t); osc.stop(now + note.t + duration);
+          });
+        }
+        else if (type === 'success') {
+          const osc = ctx.createOscillator(); const gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(523.25, now);
+          osc.frequency.setValueAtTime(659.25, now + 0.08);
+          osc.frequency.setValueAtTime(783.99, now + 0.16);
+          osc.frequency.setValueAtTime(1046.50, now + 0.24);
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+          osc.start(now); osc.stop(now + 0.4);
+        }
+      } catch (e) {
+        console.error("Audio error: ", e);
       }
     }
+
+    // 💾 โหลดรูป และชื่อจาก LocalStorage อัตโนมัติเมื่อเปิดเว็บ
+    document.addEventListener('DOMContentLoaded', () => {
+      const savedAvatar = localStorage.getItem('sainbangsaen_avatar');
+      const savedName = localStorage.getItem('sainbangsaen_name');
+
+      if (savedName) {
+        document.getElementById('username-input').value = savedName;
+      }
+
+      if (savedAvatar) {
+        const imgElement = document.getElementById('avatar-img-preview');
+        const placeholder = document.getElementById('upload-placeholder');
+        imgElement.src = savedAvatar;
+        imgElement.style.display = 'block';
+        if (placeholder) placeholder.style.display = 'none';
+      }
+
+      // ระบบอัปโหลดรูป + เล่นเสียงแชะ
+      document.getElementById('avatar-upload').addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+              const canvas = document.createElement('canvas');
+              const ctx = canvas.getContext('2d');
+              canvas.width = 80;
+              canvas.height = 80;
+              ctx.drawImage(img, 0, 0, 80, 80);
+              
+              const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+
+              const imgElement = document.getElementById('avatar-img-preview');
+              const placeholder = document.getElementById('upload-placeholder');
+              
+              imgElement.src = compressedBase64;
+              imgElement.style.display = 'block';
+              if (placeholder) placeholder.style.display = 'none';
+
+              localStorage.setItem('sainbangsaen_avatar', compressedBase64);
+              playSound('photo');
+            };
+            img.src = e.target.result;
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+    });
 
     let playerName = "นักท่องเที่ยว";
     let savedAvatarHTML = "";
@@ -630,10 +673,49 @@
       return shuffled;
     }
 
+    // สุ่มจุดเป้าหมายภายในรัศมี 5 พิกเซล โดยไม่แก้พิกัดต้นแบบใน baseQuestions
+    // เก็บ offset ล่าสุดแยกตามชื่อสถานที่ เพื่อหลีกเลี่ยงตำแหน่งเดิมในรอบถัดไปบนเครื่องเดียวกัน
+    function randomizeTargetPoint(question) {
+      const radius = 5;
+      const storageKey = "sainbangsaen_last_offset_" + encodeURIComponent(question.name);
+      let previousOffset = null;
+
+      try {
+        previousOffset = JSON.parse(localStorage.getItem(storageKey) || 'null');
+      } catch (e) {
+        previousOffset = null;
+      }
+
+      const candidates = [];
+      for (let dx = -radius; dx <= radius; dx++) {
+        for (let dy = -radius; dy <= radius; dy++) {
+          if (dx * dx + dy * dy > radius * radius) continue;
+          if (previousOffset && dx === previousOffset.dx && dy === previousOffset.dy) continue;
+          candidates.push({ dx, dy });
+        }
+      }
+
+      // มีจุดที่เป็นไปได้หลายสิบจุด แต่มี fallback เผื่อข้อมูลเก่าผิดรูปแบบ
+      const offset = candidates.length
+        ? candidates[Math.floor(Math.random() * candidates.length)]
+        : { dx: 0, dy: 0 };
+
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(offset));
+      } catch (e) {
+        console.warn('ไม่สามารถบันทึก offset ของจุดสุ่มได้:', e);
+      }
+
+      return { ...question, x: question.x + offset.dx, y: question.y + offset.dy };
+    }
+
     function startJourney() {
       playSound('start');
       const inputVal = document.getElementById('username-input').value.trim();
-      if (inputVal !== "") playerName = inputVal;
+      if (inputVal !== "") {
+        playerName = inputVal;
+        localStorage.setItem('sainbangsaen_name', playerName);
+      }
       
       savedAvatarHTML = window.getAvatarHTML();
       
@@ -642,7 +724,7 @@
 
       updateOnlineStatus();
 
-      questions = shuffleArray(baseQuestions);
+      questions = shuffleArray(baseQuestions.map(q => randomizeTargetPoint(q)));
       currentIdx = 0;
       totalScore = 0;
       document.getElementById('score-txt').innerText = `คะแนน: ${totalScore}`;
@@ -654,6 +736,12 @@
         map.invalidateSize();
         loadQuestion();
       }, 100);
+    }
+
+    function restartGame() {
+      playSound('click');
+      document.getElementById('final-screen').style.display = "none";
+      document.getElementById('intro-screen').style.display = "block";
     }
 
     const baseQuestions = [
@@ -720,7 +808,6 @@
       userGuess = null;
     }
 
-    // 📍 หมุดหยดน้ำปลายแหลมสีส้ม พร้อมรูปโปรไฟล์วงกลมตรงกลาง
     function getPlayerMarkerIcon() {
       return L.divIcon({
         className: 'custom-pin-wrapper',
@@ -766,6 +853,10 @@
     }
 
     function submitAnswer() {
+      if (!userGuess) {
+        document.getElementById('result-msg').innerText = "กรุณาแตะบนแผนที่เพื่อปักหมุดคำตอบก่อนครับ";
+        return;
+      }
       playSound('submit');
       const target = questions[currentIdx];
       const distPixels = calcDistance(userGuess, { x: target.x, y: target.y });
@@ -781,7 +872,7 @@
       let btnMapsHtml = "";
       let btnFbHtml = "";
 
-      if (dist <= 150) {
+      if (dist <= 0) {
         playSound('success');
         promoHtml = target.promo ? `<div style="background:#fef3c7; color:#92400e; border:1px dashed #f59e0b; padding:4px 8px; border-radius:6px; font-size:11px; margin-top:6px; font-weight:bold;">🎁 ${target.promo}</div>` : "";
         btnMapsHtml = target.mapsUrl ? `<a href="${target.mapsUrl}" target="_blank" style="background:#22c55e; color:white; padding:4px 8px; border-radius:6px; text-decoration:none; font-size:11px; font-weight:bold; display:inline-block;">🗺️ นำทางไปร้าน</a>` : "";
@@ -793,7 +884,7 @@
       }
 
       document.getElementById('result-msg').innerHTML = `
-        🎯 ได้ +${score} คะแนน (ห่าง ${dist} เมตร)
+        🎯 ได้ +${score} คะแนน
         ${promoHtml}
         <div style="margin-top:6px; display:flex; gap:6px; flex-wrap:wrap; justify-content:center;">
           ${btnMapsHtml}
@@ -845,7 +936,6 @@
       }
     }
 
-    // 🎁 แสดงคูปอง + คำนวณวันหมดอายุ 7 วัน + เสียงเซอร์ไพรส์
     function showCouponModal(target) {
       playSound('couponSurprise');
       const container = document.getElementById('coupon-image-container');
@@ -858,18 +948,25 @@
       expDate.setDate(expDate.getDate() + 7);
       const expStr = expDate.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' });
 
+      const couponNumber = "SB-" + Math.floor(1000 + Math.random() * 9000);
+
       container.innerHTML = `
-        <div style="background:#fff3ed; padding:12px; border-radius:12px; margin-top:5px;">
-          <div style="width:100%; height:160px; border-radius:10px; overflow:hidden; margin-bottom:10px; border:1px solid #fed7aa; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
+        <div style="background:#fff3ed; padding:12px; border-radius:12px; margin-top:5px; text-align:left;">
+          <div style="width:100%; height:150px; border-radius:10px; overflow:hidden; margin-bottom:8px; border:1px solid #fed7aa; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
             <img src="${target.img}" alt="${target.name}" style="width:100%; height:100%; object-fit:cover; object-position:center; display:block;">
           </div>
 
-          <h3 style="margin:0 0 4px 0; color:#ea580c; font-size:16px;">${target.name}</h3>
-          <p style="margin:5px 0; font-weight:bold; color:#c2410c; font-size:15px;">${target.promo}</p>
+          <div style="display:flex; justify-content:space-between; align-items:center; background:#ffedd5; padding:4px 8px; border-radius:6px; margin-bottom:6px;">
+            <span style="font-size:11px; color:#c2410c; font-weight:bold;">🎟️ เลขคูปอง: <b style="color:#ea580c;">#${couponNumber}</b></span>
+            <span style="font-size:11px; color:#9a3412; font-weight:bold;">👤 ผู้รับ: ${playerName}</span>
+          </div>
 
-          <div style="font-size:11px; color:#9a3412; background:#ffedd5; padding:6px 8px; border-radius:8px; margin-top:8px; display:flex; flex-direction:column; gap:3px; font-weight:bold; border: 1px dashed #f97316;">
-            <div>📅 วันที่ได้รับ: ${issueStr} (${timeStr} น.)</div>
-            <div style="color: #d97706; font-size: 12px;">⏳ หมดอายุภายใน 7 วัน: <b>${expStr}</b></div>
+          <h3 style="margin:0 0 2px 0; color:#ea580c; font-size:15px; text-align:center;">${target.name}</h3>
+          <p style="margin:4px 0; font-weight:bold; color:#c2410c; font-size:14px; text-align:center;">${target.promo}</p>
+
+          <div style="font-size:11px; color:#9a3412; background:#fff; padding:6px 8px; border-radius:8px; margin-top:6px; display:flex; flex-direction:column; gap:2px; font-weight:bold; border: 1px dashed #f97316;">
+            <div>📅 ออกคูปองเมื่อ: ${issueStr} (${timeStr} น.)</div>
+            <div style="color: #d97706;">⏳ หมดอายุภายใน 7 วัน: <b>${expStr}</b></div>
           </div>
         </div>
       `;
