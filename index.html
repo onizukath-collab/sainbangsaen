@@ -676,7 +676,7 @@
     // สุ่มจุดเป้าหมายภายในรัศมี 5 พิกเซล โดยไม่แก้พิกัดต้นแบบใน baseQuestions
     // เก็บ offset ล่าสุดแยกตามชื่อสถานที่ เพื่อหลีกเลี่ยงตำแหน่งเดิมในรอบถัดไปบนเครื่องเดียวกัน
     function randomizeTargetPoint(question) {
-      const radius = 15;
+      const radius = 30;
       const storageKey = "sainbangsaen_last_offset_" + encodeURIComponent(question.name);
       let previousOffset = null;
 
